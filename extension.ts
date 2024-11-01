@@ -73,7 +73,7 @@ export default class ActivityTrackerExtension extends Extension {
         }
 
         this._indicator.add_child(new St.Icon({
-            icon_name: 'delay-simbolic',
+            icon_name: 'preferences-system-time-symbolic',
             style_class: 'system-status-icon',
         }));
 
