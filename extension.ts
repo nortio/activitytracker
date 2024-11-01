@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-import GObject from 'gi://GObject';
 import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
@@ -16,16 +15,11 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-/* const Indicator = GObject.registerClass(
-class Indicator extends PanelMenu.Button {
-    _init() {
-        
-    }
-}); */
-
 import Gio from 'gi://Gio';
 
-
+function debug(str: string) {
+    console.debug("[activitytracker]", str)
+}
 
 export default class ActivityTrackerExtension extends Extension {
     private _screenLocked: boolean;
@@ -63,7 +57,7 @@ export default class ActivityTrackerExtension extends Extension {
         let bytes = new GLib.Bytes(utf);
         let num = await this._logFile?.write_bytes_async(bytes, GLib.PRIORITY_DEFAULT, null) as unknown as number;
 
-        console.log(`Written ${num} bytes`);
+        debug(`Written ${num} bytes`);
     }
 
 
@@ -74,14 +68,12 @@ export default class ActivityTrackerExtension extends Extension {
         }
 
         if (!this._logFile) {
-            console.log(`Logging to ${this._logLocation.get_path()}`);
+            debug(`Logging to ${this._logLocation.get_path()}`);
             this._logFile = this._logLocation.append_to(Gio.FileCreateFlags.NONE, null);
-
-            //await this.write_to_log("hello world\n")
         }
 
         this._indicator.add_child(new St.Icon({
-            icon_name: 'face-smile-symbolic',
+            icon_name: 'delay-simbolic',
             style_class: 'system-status-icon',
         }));
 
@@ -98,8 +90,6 @@ export default class ActivityTrackerExtension extends Extension {
         this._sessionId = Main.sessionMode.connect('updated', this._onSessionModeChange.bind(this));
 
         this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, () => {
-            //console.warn(`Inactive: ${this._screenLocked}`);
-            //Main.notify("Tick", `Inactive: ${this._screenLocked}`);
             let entry = {
                 timestamp: new Date().valueOf(),
                 locked: this._screenLocked,
@@ -115,7 +105,7 @@ export default class ActivityTrackerExtension extends Extension {
                     .map(a => a.meta_window)
                     .filter(w => w.has_focus())
                     .map(w => ({ pid: w.get_pid(), name: w.get_title(), id: w.get_sandboxed_app_id() ? w.get_sandboxed_app_id() : w.get_gtk_application_id(), class: w.get_wm_class() }))
-                console.log(focused_windows)
+
                 if (focused_windows.length > 0) {
                     let focused_window = focused_windows[0];
                     entry.class = focused_window.class ? focused_window.class : "";
@@ -132,18 +122,13 @@ export default class ActivityTrackerExtension extends Extension {
 
         this._idleMonitor = global.backend.get_core_idle_monitor();
         this._idleMonitor.add_idle_watch(1000 * 120, () => {
-            console.log("User is idle");
-            //Main.notify("Idle", "User idle")
+            debug("User is idle");
             this._idle = true;
             this._idleMonitor!.add_user_active_watch(() => {
-                console.log("User is back")
+                debug("User is back")
                 this._idle = false;
             })
         })
-
-
-
-        console.error("HELLO WORLD")
     }
 
     disable() {
@@ -161,7 +146,5 @@ export default class ActivityTrackerExtension extends Extension {
             Main.sessionMode.disconnect(this._sessionId);
             this._sessionId = null;
         }
-
-
     }
 }
