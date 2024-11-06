@@ -115,7 +115,7 @@ export default class ActivityTrackerExtension extends Extension {
                 }
             }
 
-            this.write_to_log(`${entry.timestamp},${entry.locked},${entry.idle},${entry.name.replace(",", "\\,")},${entry.pid},${entry.id},${entry.class}\n`)
+            this.write_to_log(`${entry.timestamp},${entry.locked},${entry.idle},"${entry.name.replaceAll('"', '""')}",${entry.pid},${entry.id},${entry.class}\r\n`)
 
             return GLib.SOURCE_CONTINUE
         })
@@ -145,6 +145,10 @@ export default class ActivityTrackerExtension extends Extension {
         if (this._sessionId) {
             Main.sessionMode.disconnect(this._sessionId);
             this._sessionId = null;
+        }
+
+        if(this._logFile) {
+            this._logFile.close()
         }
     }
 }

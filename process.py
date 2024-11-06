@@ -23,6 +23,7 @@
 import csv
 import sys 
 import datetime
+import re
 
 def increment_count(data, key, amount):
     if key not in data:
@@ -33,6 +34,25 @@ def print_history(data):
     for key, value in data.items():
         print(key)
         print_times(value)
+
+def add_filter(dictionary, key, val):
+    if key not in dictionary:
+        dictionary[key] = []
+    dictionary[key].append(val)
+
+def load_filters(data):
+    current = ""
+    filters = {}
+    for i, line in enumerate(data):
+        if line.startswith("#"): continue
+        if line.strip() == '': continue
+        if line.startswith("\t"):
+            name, pattern = line.strip().split(":",1)
+            add_filter(filters, current, (name,re.compile(pattern.strip())))
+        else:
+            current = line.strip()
+    return filters
+
 
 def print_times(data):
     lengths = [len(l) for l in data.keys()]
@@ -67,7 +87,7 @@ def get_title(row):
     return title
 
 
-def process(file):
+def process(file, filters):
     hist = {}
     with open(file, newline='') as file:
         reader = csv.reader(file, delimiter=',')
@@ -85,6 +105,8 @@ def process(file):
         #    increment_count(hist[previous_date], previous_title, duration)
         
         for row in reader:
+            if len(row) > 7:
+                print("Invalid row:", row)
 
             timestamp = int(row[0])
             date = datetime.date.fromtimestamp(timestamp / 1000).isoformat()
@@ -100,15 +122,28 @@ def process(file):
             idle = str_to_bool(row[2])
 
             title = get_title(row)
+            if title in filters:
+                for val in filters[title]:
+                    if val[1].match(row[-4]):
+                        title = val[0]
 
-            if previous_title and not locked and not idle:
-                increment_count(hist[previous_date], previous_title, duration)
+            if previous_title and (not locked and not idle):
+                # this is necessary because the extension does not account for shutdowns
+                # where time could be counted for the last app even when the computer is off
+                if duration < 30000:
+                    increment_count(hist[previous_date], previous_title, duration)
 
             previous_title = title 
     return hist
             
             
 if __name__ == "__main__":
-    data = process(sys.argv[1])
+    if len(sys.argv) < 3:
+        print("Usage: process.py <log> <filters>")
+        exit(1)
+    filter_data = open(sys.argv[2])
+    filters = load_filters(filter_data)
+    print("Loaded filters: {}".format(filters))
+    data = process(sys.argv[1], filters)
     print_history(data)
     
