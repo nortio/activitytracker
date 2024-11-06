@@ -34,7 +34,7 @@ It also supports filters for further categorization based on the window title. F
 
 ```
 firefox
-	youtube: .* - Youtube.*
+	youtube: .* - YouTube.*
 ```
 
 Will match any window with `firefox` (matched against wmclass, appid, or window title) and apply further categorization based on the regex. For example, applying this filter will result in this:
