@@ -24,6 +24,7 @@ import csv
 import sys
 import datetime
 import re
+import os
 
 Filters = dict[str, list[tuple[str, re.Pattern[str]]]]
 HistoryEntry = dict[str, int]
@@ -36,10 +37,21 @@ def increment_count(data: HistoryEntry, key: str, amount: int):
     data[key] += amount
 
 
-def print_history(data: History):
+def print_history(data: History, reports):
     for key, value in data.items():
         print(key)
-        print_times(value)
+        times, total = print_times(value)
+        print("Total: {}".format(total))
+        report_path = os.path.join(reports, key)
+        if os.path.exists(report_path):
+            report = ""
+            with open(report_path, mode="r") as file:
+                report = file.read()
+            print("Report: ", report)
+        else:
+            print("No report found for that day")
+        print(times)
+
 
 
 def add_filter(filters: Filters, key: str, val: tuple[str, re.Pattern[str]]):
@@ -69,13 +81,15 @@ def print_times(data):
     lengths = [len(l) for l in data.keys()]
     max_len = 0
     total = 0
+    final = ""
     if len(lengths) > 0:
         max_len = max(lengths)
     for key in sorted(data, key=data.get, reverse=True):
         delta = datetime.timedelta(milliseconds=data[key])
-        print("\t{} {}".format(key.ljust(max_len), str(delta)))
+        final += "\t{} {}\n".format(key.ljust(max_len), str(delta))
         total += data[key]
-    print("Total: {}".format(datetime.timedelta(milliseconds=total)))
+    total_string = datetime.timedelta(milliseconds=total)
+    return final, total_string
 
 
 def str_to_bool(val: str):
@@ -154,10 +168,11 @@ def process(file_path: str, filters: Filters) -> History:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: process.py <log> <filters>")
+    if len(sys.argv) < 4:
+        print("Usage: process.py <log> <filters> <reports-folder>")
         exit(1)
     filters = load_filters(sys.argv[2])
+    reports = sys.argv[3]
     print("Loaded filters: {}".format(filters))
     data = process(sys.argv[1], filters)
-    print_history(data)
+    print_history(data, reports)
