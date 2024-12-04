@@ -3,7 +3,8 @@
   "description": "Tracks how much time you spend on each application you're using",
   "uuid": "activitytracker@nortio.github.io",
   "shell-version": [
-    "46"
+    "46",
+    "47"
   ],
   "session-modes" : ["user", "unlock-dialog", "gdm"]
 }
