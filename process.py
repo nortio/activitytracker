@@ -113,6 +113,11 @@ def get_title(row: list[str]):
 
     return title
 
+# Only deals with time in UTC
+def get_date(timestamp: int):
+    return datetime.datetime.fromtimestamp(
+            timestamp / 1000, tz=datetime.UTC
+        ).date().isoformat()
 
 def process(file_path: str, filters: Filters) -> History:
     hist: History = {}
@@ -122,9 +127,7 @@ def process(file_path: str, filters: Filters) -> History:
         first_row = next(reader)
         previous_timestamp = int(first_row[0])
         previous_title = get_title(first_row)
-        previous_date = datetime.date.fromtimestamp(
-            previous_timestamp / 1000
-        ).isoformat()
+        previous_date = get_date(previous_timestamp)
         hist[previous_date] = {}
 
         duration = 0
@@ -139,7 +142,7 @@ def process(file_path: str, filters: Filters) -> History:
                 pass
 
             timestamp = int(row[0])
-            date = datetime.date.fromtimestamp(timestamp / 1000).isoformat()
+            date = get_date(timestamp)
 
             if previous_date != date:
                 previous_date = date
