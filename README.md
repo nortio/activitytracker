@@ -55,3 +55,10 @@ Total: 1:45:20
 ```
 
 As you can see, `youtube` is shown in a different category.
+
+## Using the C++ based reporter
+
+> [!IMPORTANT]
+> You need a C++ compiler with C++20 support
+
+Run `make reporter` and run `reporter <log file>` for a quicker report generation. It's still incomplete as it lacks filters.
