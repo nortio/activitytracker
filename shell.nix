@@ -7,5 +7,6 @@ pkgs.mkShell {
 		clang-tools
 		kdePackages.kcachegrind
 		valgrind
+		bear
 	];
 }
