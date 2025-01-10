@@ -59,6 +59,6 @@ As you can see, `youtube` is shown in a different category.
 ## Using the C++ based reporter
 
 > [!IMPORTANT]
-> You need a C++ compiler with C++20 support
+> You will need a C++ compiler with C++20 support. Boost libraries can be optionally used to improve regex performance (by a lot, they are recommended).
 
-Run `make reporter` and run `reporter <log file>` for a quicker report generation. It's still incomplete as it lacks filters.
+Run `make reporter` and run `reporter <log file> <filters> <silent (y/n)>` for a quicker report generation. It's still incomplete as it lacks filters.

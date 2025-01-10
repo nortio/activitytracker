@@ -1,18 +1,30 @@
 #include "csv.h"
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <format>
 #include <iostream>
 #include <map>
 #include <set>
 #include <string>
+#include <tuple>
 #include <unordered_map>
+#include <vector>
 
 using Days = std::chrono::duration<int64_t, std::ratio<86400>>;
 using SystemClock = std::chrono::system_clock;
 using UsageDurations = std::unordered_map<std::string, uint64_t>;
+
+#if __has_include(<boost/regex.hpp>)
+#include <boost/regex.hpp>
+using Regex = boost::regex;
+#else
+#include <regex>
+using Regex = std::regex;
+#endif
 
 const int COLUMNS = 7;
 
@@ -69,19 +81,110 @@ struct AppUsage {
     uint64_t usage;
 };
 
+// awful
+char *ltrim(char *str) {
+    char *s = str;
+    while (isspace(*s))
+        s++;
+    return s;
+}
+
+// awful pt2
+char *rtrim(char *str) {
+    size_t len = strlen(str);
+    len--;
+    while (len > 0) {
+        if (isspace(str[len])) {
+            str[len] = 0;
+        } else {
+            break;
+        }
+        len--;
+    };
+    return str;
+}
+
+// idc
+char *trim(char *str) {
+    char *s = ltrim(str);
+    return rtrim(s);
+}
+
+using RegexPair = std::tuple<boost::regex, std::string>;
+using Filters = std::unordered_map<std::string, std::vector<RegexPair>>;
+
+Filters load_filters(const char *file) {
+    auto filters = Filters();
+
+    FILE *f = fopen(file, "r");
+    if (!f) {
+        perror("load_filters fopen");
+        return filters;
+    }
+
+    char line[256] = {0};
+
+
+    std::string current = "";
+
+    while (fgets(line, 256, f)) {
+        char first_char = *line;
+
+        switch (first_char) {
+        case '#': {
+            continue;
+        }
+        case '\t': {
+            // TODO: make this more robust and secure
+            line[strcspn(line, "\n")] = 0;
+            char *filt = line + 1;
+            size_t l = strcspn(filt, ":");
+            filt[l] = 0;
+            auto label = std::string(filt);
+            auto regex_string = std::string(trim(&filt[++l]));
+
+            auto regex = Regex(regex_string, Regex::optimize);
+
+            filters[current].emplace_back(regex, label);
+
+            std::cout << std::format("\t{}:{}\n", label, regex_string);
+            break;
+        }
+        case '\n': {
+            continue;
+        }
+        default: {
+            line[strcspn(line, "\n")] = 0;
+            current = std::string(line);
+            printf("%s\n", line);
+            break;
+        }
+        }
+    }
+
+    return filters;
+}
+
 inline bool operator>(const AppUsage &a, const AppUsage &b) { return a.usage > b.usage; }
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        std::printf("Usage: %s <csv log file> <silent (y/n)>\n", argv[0]);
+    if (argc != 4) {
+        std::printf("Usage: %s <csv log file> <filters> <silent (y/n)>\n", argv[0]);
         return 1;
     }
+
+    bool silent = *argv[3] == 'y' ? true : false;
+    char *filters_file = argv[2];
+    char *log_file = argv[1];
+
+    std::puts("Loaded filters:\n");
+    Filters filters = load_filters(filters_file);
 
     uint64_t processed_rows = 0;
 
     auto start = std::chrono::steady_clock::now();
 
-    io::CSVReader<COLUMNS, io::trim_chars<' '>, io::double_quote_escape<',', '"'>> in(argv[1]);
+    io::CSVReader<COLUMNS, io::trim_chars<' '>, io::double_quote_escape<',', '"'>> in(log_file);
 
     std::map<int64_t, UsageDurations> history;
 
@@ -122,6 +225,15 @@ int main(int argc, char **argv) {
 
         if (delta < 30000) {
             auto id_string = std::string(identifier);
+            auto it = filters.find(id_string);
+            if(it != filters.end()) {
+                auto regexes = it->second;
+                for(const auto& [regex, label] : regexes) {
+                    if(regex_match(title, regex)) {
+                        id_string = label;
+                    }
+                }
+            }
             history[date][id_string] += delta;
         }
 
@@ -133,18 +245,22 @@ int main(int argc, char **argv) {
     std::cout << std::format("Processed {} rows in {}\n", processed_rows,
                              std::chrono::duration_cast<std::chrono::milliseconds>(processing_time));
 
-    if (*argv[2] == 'y') {
+    if (silent) {
         return 0;
     }
 
     for (auto [key, val] : history) {
         auto date = std::chrono::time_point<SystemClock>(Days(key));
         std::cout << std::format("{:%F}:\n", date);
+        uint64_t total = 0;
 
         std::set<AppUsage, std::greater<AppUsage>> apps;
         for (auto [app, dur] : val) {
             apps.emplace(app, dur);
+            total += dur;
         }
+
+        std::cout << std::format("Total: {}\n", format_duration(total));
 
         for (auto [app, usage] : apps) {
             std::cout << std::format("\t{}: {}\n", app, format_duration(usage), usage);
