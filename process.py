@@ -53,7 +53,6 @@ def print_history(data: History, reports):
         print(times)
 
 
-
 def add_filter(filters: Filters, key: str, val: tuple[str, re.Pattern[str]]):
     if key not in filters:
         filters[key] = []
@@ -113,11 +112,15 @@ def get_title(row: list[str]):
 
     return title
 
+
 # Only deals with time in UTC
 def get_date(timestamp: int):
-    return datetime.datetime.fromtimestamp(
-            timestamp / 1000, tz=datetime.UTC
-        ).date().isoformat()
+    return (
+        datetime.datetime.fromtimestamp(timestamp / 1000, tz=datetime.UTC)
+        .date()
+        .isoformat()
+    )
+
 
 def process(file_path: str, filters: Filters) -> History:
     hist: History = {}

@@ -1,4 +1,4 @@
-#include "csv.h"
+#include "csv.hpp"
 #include <cctype>
 #include <chrono>
 #include <cmath>
@@ -14,17 +14,19 @@
 #include <unordered_map>
 #include <vector>
 
-using Days = std::chrono::duration<int64_t, std::ratio<86400>>;
-using SystemClock = std::chrono::system_clock;
-using UsageDurations = std::unordered_map<std::string, uint64_t>;
-
-#if __has_include(<boost/regex.hpp>)
+#if __has_include(<boost/regex.hpp>) && !defined(USE_STD_REGEX)
 #include <boost/regex.hpp>
 using Regex = boost::regex;
 #else
 #include <regex>
 using Regex = std::regex;
 #endif
+
+using Days = std::chrono::duration<int64_t, std::ratio<86400>>;
+using SystemClock = std::chrono::system_clock;
+using UsageDurations = std::unordered_map<std::string, uint64_t>;
+using RegexPair = std::tuple<Regex, std::string>;
+using Filters = std::unordered_map<std::string, std::vector<RegexPair>>;
 
 const int COLUMNS = 7;
 
@@ -81,6 +83,9 @@ struct AppUsage {
     uint64_t usage;
 };
 
+inline bool operator>(const AppUsage &a, const AppUsage &b) { return a.usage > b.usage; }
+
+
 // awful
 char *ltrim(char *str) {
     char *s = str;
@@ -110,8 +115,7 @@ char *trim(char *str) {
     return rtrim(s);
 }
 
-using RegexPair = std::tuple<boost::regex, std::string>;
-using Filters = std::unordered_map<std::string, std::vector<RegexPair>>;
+
 
 Filters load_filters(const char *file) {
     auto filters = Filters();
@@ -165,7 +169,6 @@ Filters load_filters(const char *file) {
     return filters;
 }
 
-inline bool operator>(const AppUsage &a, const AppUsage &b) { return a.usage > b.usage; }
 
 int main(int argc, char **argv) {
     if (argc != 4) {
@@ -177,7 +180,7 @@ int main(int argc, char **argv) {
     char *filters_file = argv[2];
     char *log_file = argv[1];
 
-    std::puts("Loaded filters:\n");
+    std::puts("Loaded filters:");
     Filters filters = load_filters(filters_file);
 
     uint64_t processed_rows = 0;
@@ -255,15 +258,21 @@ int main(int argc, char **argv) {
         uint64_t total = 0;
 
         std::set<AppUsage, std::greater<AppUsage>> apps;
+        
+        size_t max_len = 0;
         for (auto [app, dur] : val) {
             apps.emplace(app, dur);
+            auto len = app.length();
+            if(len > max_len) {
+                max_len = len;
+            }
             total += dur;
         }
 
         std::cout << std::format("Total: {}\n", format_duration(total));
 
         for (auto [app, usage] : apps) {
-            std::cout << std::format("\t{}: {}\n", app, format_duration(usage), usage);
+            std::cout << std::format("\t{: <{}}  {}\n", app, max_len, format_duration(usage), usage);
         }
 
         apps.clear();
