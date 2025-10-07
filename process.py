@@ -25,6 +25,7 @@ import sys
 import datetime
 import re
 import os
+import json
 
 Filters = dict[str, list[tuple[str, re.Pattern[str]]]]
 HistoryEntry = dict[str, int]
@@ -144,7 +145,11 @@ def process(file_path: str, filters: Filters) -> History:
                 print("Invalid row:", row)
                 pass
 
-            timestamp = int(row[0])
+            try:
+                timestamp = int(row[0])
+            except ValueError:
+                print(row)
+                exit(1)
             date = get_date(timestamp)
 
             if previous_date != date:
@@ -172,13 +177,15 @@ def process(file_path: str, filters: Filters) -> History:
             previous_title = title
     return hist
 
-
 if __name__ == "__main__":
     if len(sys.argv) < 4:
         print("Usage: process.py <log> <filters> <reports-folder>")
         exit(1)
     filters = load_filters(sys.argv[2])
     reports = sys.argv[3]
-    print("Loaded filters: {}".format(filters))
     data = process(sys.argv[1], filters)
-    print_history(data, reports)
+    if sys.stdout.isatty():
+        print("Loaded filters: {}".format(filters))
+        print_history(data, reports)
+    else:
+        print(json.dumps(data))

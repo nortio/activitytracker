@@ -56,6 +56,10 @@ export default class ActivityTrackerExtension extends Extension {
         let utf = this._encoder.encode(name);
         let bytes = new GLib.Bytes(utf);
         let num = await this._logFile?.write_bytes_async(bytes, GLib.PRIORITY_DEFAULT, null) as unknown as number;
+        const flushed = await this._logFile?.flush_async(GLib.PRIORITY_HIGH);
+        if(!flushed) {
+            debug("Could not flush file")
+        }
 
         debug(`Written ${num} bytes`);
     }
@@ -77,13 +81,13 @@ export default class ActivityTrackerExtension extends Extension {
             style_class: 'system-status-icon',
         }));
 
-        let item = new PopupMenu.PopupMenuItem(_('Is inactive?'));
+/*         let item = new PopupMenu.PopupMenuItem(_('Is inactive?'));
         item.connect('activate', () => {
             Main.notify("Inactive: ", this._screenLocked.toString());
         });
 
         let menu = this._indicator.menu as PopupMenu.PopupMenu<PopupMenu.PopupMenu.SignalMap>;
-        menu.addMenuItem(item);
+        menu.addMenuItem(item); */
 
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
