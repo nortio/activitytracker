@@ -1,5 +1,7 @@
 NAME=activitytracker
 DOMAIN=nortio.github.io
+CC=cc
+CXX=c++
 #pack
 .PHONY: all install clean process
 
@@ -28,7 +30,7 @@ install: all
 	@mv dist ~/.local/share/gnome-shell/extensions/$(NAME)@$(DOMAIN)
 
 reporter: reporter-cpp/main.cpp
-	c++ -std=c++20 reporter-cpp/main.cpp -o reporter -O3
+	$(CXX) -std=c++20 reporter-cpp/main.cpp -o reporter -O3
 
 clean:
 	@rm -rf dist node_modules $(NAME).zip

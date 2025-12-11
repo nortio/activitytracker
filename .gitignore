@@ -4,3 +4,6 @@ node_modules/
 reporter
 compile_commands.json
 .cache
+**/*.o
+visualizer/visualizer
+imgui.ini
