@@ -9,7 +9,7 @@ import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 
-import { Extension, ExtensionMetadata, gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { Extension, gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
@@ -22,27 +22,15 @@ function debug(str: string) {
 }
 
 export default class ActivityTrackerExtension extends Extension {
-    private _screenLocked: boolean;
-    private _idle: boolean;
+    private _screenLocked: boolean = false
+    private _idle: boolean = false;
     private _indicator: PanelMenu.Button | undefined;
     private _sessionId: any | null;
     private _timeoutId: any | null;
     private _idleMonitor: Meta.IdleMonitor | undefined;
-    private _logLocation: Gio.File;
+    private _logLocation: Gio.File = Gio.file_new_build_filenamev([GLib.get_home_dir(), ".local/share/activitytracker/log"]);
     private _logFile: Gio.FileOutputStream | undefined;
-    private _encoder: TextEncoder;
-
-
-    constructor(metadata: ExtensionMetadata) {
-        super(metadata)
-        this._screenLocked = false;
-        this._indicator = undefined;
-        this._idle = false;
-
-        this._encoder = new TextEncoder();
-        this._logLocation = Gio.file_new_build_filenamev([GLib.get_home_dir(), ".local/share/activitytracker/log"]);
-        Gio._promisify(Gio.OutputStream.prototype, 'write_bytes_async', 'write_bytes_finish');
-    }
+    private _encoder: TextEncoder = new TextEncoder();
 
     _onSessionModeChange(session: { currentMode: string; parentMode: string; }) {
         if (session.currentMode === "user" || session.parentMode === "user") {
@@ -54,18 +42,25 @@ export default class ActivityTrackerExtension extends Extension {
 
     async write_to_log(name: string) {
         let utf = this._encoder.encode(name);
-        let bytes = new GLib.Bytes(utf);
-        let num = await this._logFile?.write_bytes_async(bytes, GLib.PRIORITY_DEFAULT, null) as unknown as number;
-        const flushed = await this._logFile?.flush_async(GLib.PRIORITY_HIGH);
-        if(!flushed) {
-            debug("Could not flush file")
+        let bytes: GLib.Bytes = new GLib.Bytes(utf);
+        try {
+            let num = await (this._logFile?.write_bytes_async(bytes, GLib.PRIORITY_DEFAULT, null) as Promise<number>);
+            const flushed = await this._logFile?.flush_async(GLib.PRIORITY_HIGH, null);
+            if (!flushed) {
+                debug("Could not flush file")
+            }
+            debug(`Written ${num} bytes`);
+        } catch (error) {
+            debug(`Error writing to log: ${error}`)
         }
 
-        debug(`Written ${num} bytes`);
     }
 
 
     async enable() {
+        Gio._promisify(Gio.OutputStream.prototype, 'write_bytes_async', 'write_bytes_finish');
+        Gio._promisify(Gio.OutputStream.prototype, "flush_async", "flush_finish")
+
         this._onSessionModeChange(Main.sessionMode)
         if (!this._indicator) {
             this._indicator = new PanelMenu.Button(0.0, _('Activity Tracker Indicator'));
@@ -81,13 +76,13 @@ export default class ActivityTrackerExtension extends Extension {
             style_class: 'system-status-icon',
         }));
 
-/*         let item = new PopupMenu.PopupMenuItem(_('Is inactive?'));
-        item.connect('activate', () => {
-            Main.notify("Inactive: ", this._screenLocked.toString());
-        });
-
-        let menu = this._indicator.menu as PopupMenu.PopupMenu<PopupMenu.PopupMenu.SignalMap>;
-        menu.addMenuItem(item); */
+        /*         let item = new PopupMenu.PopupMenuItem(_('Is inactive?'));
+                item.connect('activate', () => {
+                    Main.notify("Inactive: ", this._screenLocked.toString());
+                });
+        
+                let menu = this._indicator.menu as PopupMenu.PopupMenu<PopupMenu.PopupMenu.SignalMap>;
+                menu.addMenuItem(item); */
 
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
@@ -151,8 +146,8 @@ export default class ActivityTrackerExtension extends Extension {
             this._sessionId = null;
         }
 
-        if(this._logFile) {
-            this._logFile.close()
+        if (this._logFile) {
+            this._logFile.close(null)
         }
     }
 }

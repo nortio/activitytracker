@@ -4,12 +4,9 @@
 }:
 pkgs.mkShell {
   nativeBuildInputs = with pkgs.buildPackages; [
-    nodejs_22
+    nodejs_24
     gnumake
-    gcc14
-    llvmPackages_19.clang-tools
-    llvmPackages_19.libcxx
-    clang_19
+    clang-tools
     kdePackages.kcachegrind
     valgrind
     bear
